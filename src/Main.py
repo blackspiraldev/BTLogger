@@ -16,6 +16,12 @@ Aims for this app.
 Cfg options (regex --> colour mappings stored in configuration file (ini style))
 
 
+To Consider adding:
+
+1. Live regex testing on text entry. This shouldnt be too hard to implement.
+2. Loading the file in open dialog and via a path
+3. 'Follow' suppport ala tail -f
+
 '''
 from Tkinter import *
 import re
@@ -41,6 +47,46 @@ def applyFilter(listbox, configs, line):
             s = listbox.size() - 1
             listbox.itemconfigure(s, fg = c[1], bg = c[0] )
 
+class FilterableListbox(Listbox):
+    '''
+    This listbox should now be able to become 'filtered' based
+    on results of a RE.
+    
+    Not yet thought of a sensible way to store the history..
+    '''
+
+    
+    def applyfilter(self, regex, config):
+        
+        if len(regex) < 1:
+            self.delete(0, self.size()-1)
+            if self.original_list:
+                for l in self.original_list:
+                    self.insert(END, l)
+                    applyFilter(self, config, l)
+            return
+        
+        new_pattern = re.compile(regex, re.IGNORECASE)
+        new_list = []
+        for l in range(0, self.size()-1):
+            matches = new_pattern.findall(self.get(l))
+            if matches:
+                new_list.append(self.get(l))
+                
+        if len(new_list) > 0:
+            try:
+                if len(self.original_list) < 1:
+                    self.original_list = self.get(0, self.size() -1)
+            except:
+                self.original_list = self.get(0, self.size() -1)
+            
+             
+                           
+            self.delete(0, self.size())
+            for l in new_list:
+                self.insert(END, l)    
+                applyFilter(self, config, l)
+        
 class App:
     
     def __init__(self, master):
@@ -80,10 +126,18 @@ class App:
         self.filteredview = Listbox(master)
         self.filteredview.grid(row=3, column=0, columnspan='3', sticky='nsew')
         
+        self.testview = FilterableListbox(master)
+        self.testview.grid(row=4,column=0,columnspan='3', sticky='nsew')
+        
+        
         self.insert_dummy()
         
     
     def filter(self):
+        
+        #Try out the new filterable view
+        self.testview.applyfilter(self.filterentry.get(), self.config)
+        
         self.filteredview.delete(0, self.filteredview.size())
         #self.filteredview.insert(END, self.filterentry.get())
         new_pattern = re.compile(self.filterentry.get(), re.IGNORECASE)
@@ -95,12 +149,13 @@ class App:
     
     def insert_dummy(self):
         self.fullview.insert(END, "This is a test entry to see")
+        self.testview.insert(END, "This is a test entry to see")
         applyFilter(self.fullview, self.config, "This is a test entry to see")
         
         for x in range(0,200):
             self.fullview.insert(END, str(x))
             applyFilter(self.fullview, self.config, str(x))
-
+            self.testview.insert(END, str(x))
         
     def insert(self):
         self.fullview.insert(END, "test")        
