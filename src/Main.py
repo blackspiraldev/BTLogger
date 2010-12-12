@@ -19,8 +19,11 @@ Cfg options (regex --> colour mappings stored in configuration file (ini style))
 To Consider adding:
 
 1. Live regex testing on text entry. This shouldnt be too hard to implement.
-2. Loading the file in open dialog and via a path
-3. 'Follow' suppport ala tail -f
+  - this should probably be a seperate app
+
+2. Proper layout
+3. Status bar, show errors or other notifications of problems
+4. SCROLLBARS!!!
 
 '''
 from Tkinter import *
@@ -48,7 +51,7 @@ def applyFilter(listbox, configs, line):
         matches = new_pattern.findall(line)
         if matches:
             s = listbox.size() - 1
-            listbox.itemconfigure(s, fg = c[1], bg = c[0] )
+            listbox.itemconfigure(s, fg=c[1], bg=c[0])
 
 class FilterableListbox(Listbox):
     '''
@@ -64,7 +67,7 @@ class FilterableListbox(Listbox):
     def applyfilter(self, regex, config):
         
         if len(regex) < 1:
-            self.delete(0, self.size()-1)
+            self.delete(0, self.size() - 1)
             if self.original_list:
                 for l in self.original_list:
                     self.insert(END, l)
@@ -73,7 +76,7 @@ class FilterableListbox(Listbox):
         
         new_pattern = re.compile(regex, re.IGNORECASE)
         new_list = []
-        for l in range(0, self.size()-1):
+        for l in range(0, self.size() - 1):
             matches = new_pattern.findall(self.get(l))
             if matches:
                 new_list.append(self.get(l))
@@ -81,9 +84,9 @@ class FilterableListbox(Listbox):
         if len(new_list) > 0:
             try:
                 if len(self.original_list) < 1:
-                    self.original_list = self.get(0, self.size() -1)
+                    self.original_list = self.get(0, self.size() - 1)
             except:
-                self.original_list = self.get(0, self.size() -1)
+                self.original_list = self.get(0, self.size() - 1)
             
             self.delete(0, self.size())
             for l in new_list:
@@ -120,7 +123,7 @@ class TailFollow(Thread):
             self.callback.update(line)
     
     def follow(self, thefile):
-        thefile.seek(0,2)      # Go to the end of the file
+        thefile.seek(0, 2)      # Go to the end of the file
         while self.running:
             line = thefile.readline()
             if not line:
@@ -143,11 +146,12 @@ class App:
         master.grid_columnconfigure(0, weight=1)
         
         self.fileentry = Entry(master)
+        self.fileentry.insert(0, "/var/log/System.log")
         self.fileentry.grid(row=0, column=0, sticky='ew')
-        self.openbutton = Button(master, text="Open")
+        self.openbutton = Button(master, text="Open", command=self.open_file)
         self.openbutton.grid(row=0, column=1, sticky='ew')
         self.button = Button(master, text="Quit", fg="red", command=self.handle_quit)
-        self.button.grid(row=0,column=2, sticky='ew')
+        self.button.grid(row=0, column=2, sticky='ew')
 
         #Two list boxes are required 1 for the unfiltered view
         #and one for the filtered view
@@ -160,30 +164,36 @@ class App:
         
         #Add the filter text box plus a button
         self.filterentry = Entry(master)
-        self.filterentry.grid(row=2, column=0,columnspan='2', sticky='nsew')
+        self.filterentry.grid(row=2, column=0, columnspan='2', sticky='nsew')
         
         self.filterbutton = Button(master, text="Filter", command=self.filter)
-        self.filterbutton.grid(row=2,column=3, sticky='ns')
+        self.filterbutton.grid(row=2, column=3, sticky='ns')
 
         self.filteredview = Listbox(master)
         self.filteredview.grid(row=3, column=0, columnspan='3', sticky='nsew')
         
         self.testview = FilterableListbox(master)
-        self.testview.grid(row=4,column=0,columnspan='3', sticky='nsew')
+        self.testview.grid(row=4, column=0, columnspan='3', sticky='nsew')
         self.testview.setfilter(self.config)
                 
         self.insert_dummy()
         
         #Try tailing a file
-        self.tailer = TailFollow("/tmp/test.log", self.testview)
-        self.tailer.start()
+        self.tailer = None
+    
+    def open_file(self):
+        self.followfile(self.fileentry.get(), self.testview)
     
     def handle_quit(self):
         self.tailer.running = False
         self.master.quit()
         
-    def loadfile(self, filename):
-        pass
+    def followfile(self, filename, listbox):
+        if self.tailer:
+            self.tailer.running = False
+           
+        self.tailer = TailFollow(filename, listbox)
+        self.tailer.start()
         
     
     def filter(self):
@@ -191,7 +201,7 @@ class App:
         self.filteredview.delete(0, self.filteredview.size())
         #self.filteredview.insert(END, self.filterentry.get())
         new_pattern = re.compile(self.filterentry.get(), re.IGNORECASE)
-        for l in range(0, self.fullview.size()-1):
+        for l in range(0, self.fullview.size() - 1):
             matches = new_pattern.findall(self.fullview.get(l))
             if matches:
                 self.filteredview.insert(END, self.fullview.get(l))
@@ -202,7 +212,7 @@ class App:
         
         applyFilter(self.fullview, self.config, "This is a test entry to see")
         
-        for x in range(0,200):
+        for x in range(0, 200):
             self.fullview.insert(END, str(x))
             applyFilter(self.fullview, self.config, str(x))
             
