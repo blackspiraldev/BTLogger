@@ -9,28 +9,38 @@ import re
 class App:
     
     def __init__(self, master):
-        frame = Frame(master)
-        frame.pack()
-
-        self.button = Button(frame, text="QUIT", fg="red", command=frame.quit)
-        self.button.pack(side=LEFT)
-
         
+        master.grid_rowconfigure(1, weight=1)
+        master.grid_rowconfigure(2, weight=1)
+        master.grid_rowconfigure(3, weight=1)
+        master.grid_columnconfigure(0, weight=1)
+        
+#        frame = Frame(master)
+#        frame.pack()
+
+        self.button = Button(master, text="QUIT", fg="red", command=master.quit)
+        self.button.grid(row=0,column=0, sticky='ew')
+#        self.button.pack(side=LEFT)
+
         #Two list boxes are required 1 for the unfiltered view
         #and one for the filtered view
         self.fullview = Listbox(master)
-        self.fullview.pack()
+        self.fullview.grid(row=1, column=0, columnspan='3', sticky='nsew')
+#        self.fullview.pack()
         
         #Add the filter text box plus a button
-        self.filterentry = Entry(master, width="50")
-        self.filterentry.pack()
+        self.filterentry = Entry(master)
+        self.filterentry.grid(row=2, column=0,columnspan='2', sticky='nsew')
+#        self.filterentry.pack()
         
         self.filterbutton = Button(master, text="Filter", command=self.filter)
-        self.filterbutton.pack(side=LEFT)        
+        self.filterbutton.grid(row=2,column=3, sticky='ns')
+#        self.filterbutton.pack(side=LEFT)        
 #        self.fullview.insert(END, "Top of the list")
 #        self.fullview.insert(END, "Bottom of the list")
         self.filteredview = Listbox(master)
-        self.filteredview.pack()
+        self.filteredview.grid(row=3, column=0, columnspan='3', sticky='nsew')
+#        self.filteredview.pack()
         
         self.insert_dummy()
     
