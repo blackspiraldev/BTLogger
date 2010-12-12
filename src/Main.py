@@ -26,6 +26,9 @@ To Consider adding:
 from Tkinter import *
 import re
 import ConfigParser
+from threading import Thread
+import time
+
 
 def getconfig():
     config = ConfigParser.RawConfigParser()
@@ -55,7 +58,9 @@ class FilterableListbox(Listbox):
     Not yet thought of a sensible way to store the history..
     '''
 
-    
+    def setfilter(self, config):
+        self.config = config
+                    
     def applyfilter(self, regex, config):
         
         if len(regex) < 1:
@@ -80,45 +85,82 @@ class FilterableListbox(Listbox):
             except:
                 self.original_list = self.get(0, self.size() -1)
             
-             
-                           
             self.delete(0, self.size())
             for l in new_list:
                 self.insert(END, l)    
                 applyFilter(self, config, l)
+                
+                
+    def update(self, data):
+        '''
+        This method is getting called from the tail object
+        '''
+        self.insert(END, data)
+        applyFilter(self, self.config, data)
+
+class TailFollow(Thread):
+    '''
+    This thread simply updates the provided object by calling its
+    update method everytime it needs to
+    '''
+    
+    
+    
+    def __init__(self, filename, callback):
+        Thread.__init__(self)
+        self.callback = callback
+        self.filename = filename
+        self.running = False;
+        
+    def run(self):
+        logfile = open(self.filename)
+        loglines = self.follow(logfile)
+        self.running = True
+        for line in loglines:
+            self.callback.update(line)
+    
+    def follow(self, thefile):
+        thefile.seek(0,2)      # Go to the end of the file
+        while self.running:
+            line = thefile.readline()
+            if not line:
+                time.sleep(0.1)    # Sleep briefly
+                continue
+            yield line
+
+            
+
         
 class App:
     
     def __init__(self, master):
         self.config = getconfig()
         
+        self.master = master
         master.grid_rowconfigure(1, weight=1)
         master.grid_rowconfigure(2, weight=1)
         master.grid_rowconfigure(3, weight=1)
         master.grid_columnconfigure(0, weight=1)
         
-#        frame = Frame(master)
-#        frame.pack()
-
-        self.button = Button(master, text="QUIT", fg="red", command=master.quit)
-        self.button.grid(row=0,column=0, sticky='ew')
-#        self.button.pack(side=LEFT)
+        self.fileentry = Entry(master)
+        self.fileentry.grid(row=0, column=0, sticky='ew')
+        self.openbutton = Button(master, text="Open")
+        self.openbutton.grid(row=0, column=1, sticky='ew')
+        self.button = Button(master, text="Quit", fg="red", command=self.handle_quit)
+        self.button.grid(row=0,column=2, sticky='ew')
 
         #Two list boxes are required 1 for the unfiltered view
         #and one for the filtered view
         self.fullviewSB = Scrollbar(master, orient=VERTICAL)
         self.fullview = Listbox(master, yscrollcommand=self.fullviewSB.set)
         self.fullviewSB.config(command=self.fullview.yview)
-#        self.fullviewSB.pack(side=RIGHT, fill=Y)
+
         self.fullview.grid(row=1, column=0, columnspan='3', sticky='nsew')
         
-        
-#        self.fullview.pack()
         
         #Add the filter text box plus a button
         self.filterentry = Entry(master)
         self.filterentry.grid(row=2, column=0,columnspan='2', sticky='nsew')
-#        self.filterentry.pack()
         
         self.filterbutton = Button(master, text="Filter", command=self.filter)
         self.filterbutton.grid(row=2,column=3, sticky='ns')
@@ -128,15 +170,23 @@ class App:
         
         self.testview = FilterableListbox(master)
         self.testview.grid(row=4,column=0,columnspan='3', sticky='nsew')
-        
-        
+        self.testview.setfilter(self.config)
+                
         self.insert_dummy()
+        
+        #Try tailing a file
+        self.tailer = TailFollow("/tmp/test.log", self.testview)
+        self.tailer.start()
+    
+    def handle_quit(self):
+        self.tailer.running = False
+        self.master.quit()
+        
+    def loadfile(self, filename):
+        pass
         
     
     def filter(self):
-        
-        #Try out the new filterable view
-        self.testview.applyfilter(self.filterentry.get(), self.config)
         
         self.filteredview.delete(0, self.filteredview.size())
         #self.filteredview.insert(END, self.filterentry.get())
@@ -149,13 +199,13 @@ class App:
     
     def insert_dummy(self):
         self.fullview.insert(END, "This is a test entry to see")
-        self.testview.insert(END, "This is a test entry to see")
+        
         applyFilter(self.fullview, self.config, "This is a test entry to see")
         
         for x in range(0,200):
             self.fullview.insert(END, str(x))
             applyFilter(self.fullview, self.config, str(x))
-            self.testview.insert(END, str(x))
+            
         
     def insert(self):
         self.fullview.insert(END, "test")        
@@ -164,6 +214,8 @@ class App:
 if __name__ == '__main__':
     
     master = Tk()
+    master.geometry('600x600-5+40')
     app = App(master)
+    
     
     master.mainloop()
