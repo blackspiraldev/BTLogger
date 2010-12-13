@@ -97,10 +97,16 @@ class FilterableListbox(Listbox):
     def update(self, data):
         '''
         This method is getting called from the tail object
+        
+        We also generate an 'updated' virtual event so that
+        any one interested can be notified
         '''
         self.insert(END, data)
         applyFilter(self, self.config, data)
         self.see(END)
+        
+        self.event_generate("<<update>>", when="tail")
+        
 
 class TailFollow(Thread):
     '''
@@ -180,6 +186,13 @@ class App:
                 
         #Try tailing a file
         self.tailer = None
+       
+        #Dunno if we really care about this 
+        self.master.bind("<<update>>", self.doFoo)
+        
+    def doFoo(self, *args):
+        print "got update"
+        print args
     
     def open_file(self):
         self.followfile(self.fileentry.get(), self.fullview)
@@ -201,7 +214,11 @@ class App:
     def filter(self):
         self.filteredview.delete(0, self.filteredview.size())
         #self.filteredview.insert(END, self.filterentry.get())
-        new_pattern = re.compile(self.filterentry.get(), re.IGNORECASE)
+        filtertext = self.filterentry.get()
+        if len(filtertext) == 0:
+            return
+        
+        new_pattern = re.compile(filtertext, re.IGNORECASE)
         for l in range(0, self.fullview.size() - 1):
             matches = new_pattern.findall(self.fullview.get(l))
             if matches:
@@ -217,7 +234,7 @@ class App:
             self.fullview.insert(END, str(x))
             applyFilter(self.fullview, self.config, str(x))
     
-    def update(self, data):
+    def update(self, data):        
         self.filter()        
         
     def insert(self):
