@@ -107,18 +107,26 @@ class TailFollow(Thread):
     This thread simply updates the provided object by calling its
     update method everytime it needs to
     '''
-    def __init__(self, filename, callback):
+    def __init__(self, filename):
         Thread.__init__(self)
-        self.callback = callback
+        self.callback = []
         self.filename = filename
         self.running = False;
+        
+    def register_callback(self, method):
+        self.callback.append(method)
         
     def run(self):
         logfile = open(self.filename)
         loglines = self.follow(logfile)
         self.running = True
         for line in loglines:
-            self.callback.update(line)
+            #Notify callback listeners
+            for c in self.callback:
+                try:
+                    c.update(line)
+                except:
+                    print "Not a valid callback"
     
     def follow(self, thefile):
         thefile.seek(0, 2)      # Go to the end of the file
@@ -129,9 +137,6 @@ class TailFollow(Thread):
                 continue
             yield line
 
-            
-
-        
 class App:
     
     def __init__(self, master):
@@ -157,23 +162,12 @@ class App:
         self.fullviewSB = Scrollbar(master, orient=VERTICAL)
         self.fullview = FilterableListbox(master, yscrollcommand=self.fullviewSB.set)
         self.fullview.grid(row=1, column=0, columnspan='3', sticky='nsew')
-        self.fullviewSB.grid(row=1, column=3, sticky=N+S)
-
+        self.fullviewSB.grid(row=1, column=3, sticky=N + S)
 
         self.fullviewSB.config(command=self.fullview.yview)
-
         
         self.fullview.setfilter(self.config)
-        
-#        frame = Frame(master)
-#scrollbar = Scrollbar(frame, orient=VERTICAL)
-#listbox = Listbox(frame, yscrollcommand=scrollbar.set)
-#scrollbar.config(command=listbox.yview)
-#scrollbar.pack(side=RIGHT, fill=Y)
-#listbox.pack(side=LEFT, fill=BOTH, expand=1)
-        
-        
-        
+                
         #Add the filter text box plus a button
         self.filterentry = Entry(master)
         self.filterentry.grid(row=2, column=0, columnspan='2', sticky='nsew')
@@ -198,10 +192,12 @@ class App:
         if self.tailer:
             self.tailer.running = False
            
-        self.tailer = TailFollow(filename, listbox)
-        self.tailer.start()
+        self.tailer = TailFollow(filename)
+        self.tailer.register_callback(listbox)
+        self.tailer.register_callback(self)
         
-    
+        self.tailer.start()
+            
     def filter(self):
         self.filteredview.delete(0, self.filteredview.size())
         #self.filteredview.insert(END, self.filterentry.get())
@@ -220,7 +216,9 @@ class App:
         for x in range(0, 200):
             self.fullview.insert(END, str(x))
             applyFilter(self.fullview, self.config, str(x))
-            
+    
+    def update(self, data):
+        self.filter()        
         
     def insert(self):
         self.fullview.insert(END, "test")        
