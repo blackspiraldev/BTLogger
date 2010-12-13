@@ -100,15 +100,13 @@ class FilterableListbox(Listbox):
         '''
         self.insert(END, data)
         applyFilter(self, self.config, data)
+        self.see(END)
 
 class TailFollow(Thread):
     '''
     This thread simply updates the provided object by calling its
     update method everytime it needs to
     '''
-    
-    
-    
     def __init__(self, filename, callback):
         Thread.__init__(self)
         self.callback = callback
@@ -155,11 +153,25 @@ class App:
 
         #Two list boxes are required 1 for the unfiltered view
         #and one for the filtered view
+        
         self.fullviewSB = Scrollbar(master, orient=VERTICAL)
-        self.fullview = Listbox(master, yscrollcommand=self.fullviewSB.set)
+        self.fullview = FilterableListbox(master, yscrollcommand=self.fullviewSB.set)
+        self.fullview.grid(row=1, column=0, columnspan='3', sticky='nsew')
+        self.fullviewSB.grid(row=1, column=3, sticky=N+S)
+
+
         self.fullviewSB.config(command=self.fullview.yview)
 
-        self.fullview.grid(row=1, column=0, columnspan='3', sticky='nsew')
+        
+        self.fullview.setfilter(self.config)
+        
+#        frame = Frame(master)
+#scrollbar = Scrollbar(frame, orient=VERTICAL)
+#listbox = Listbox(frame, yscrollcommand=scrollbar.set)
+#scrollbar.config(command=listbox.yview)
+#scrollbar.pack(side=RIGHT, fill=Y)
+#listbox.pack(side=LEFT, fill=BOTH, expand=1)
+        
         
         
         #Add the filter text box plus a button
@@ -171,18 +183,12 @@ class App:
 
         self.filteredview = Listbox(master)
         self.filteredview.grid(row=3, column=0, columnspan='3', sticky='nsew')
-        
-        self.testview = FilterableListbox(master)
-        self.testview.grid(row=4, column=0, columnspan='3', sticky='nsew')
-        self.testview.setfilter(self.config)
                 
-        self.insert_dummy()
-        
         #Try tailing a file
         self.tailer = None
     
     def open_file(self):
-        self.followfile(self.fileentry.get(), self.testview)
+        self.followfile(self.fileentry.get(), self.fullview)
     
     def handle_quit(self):
         self.tailer.running = False
@@ -197,7 +203,6 @@ class App:
         
     
     def filter(self):
-        
         self.filteredview.delete(0, self.filteredview.size())
         #self.filteredview.insert(END, self.filterentry.get())
         new_pattern = re.compile(self.filterentry.get(), re.IGNORECASE)
